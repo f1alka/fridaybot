@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Раскомментируйте для GPU (Nvidia)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  bot:
+    build: .
+    command: python bot.py
+    env_file: .env
+    depends_on:
+      - redis
+      - ollama
+    volumes:
+      - ./vault:/app/vault
+      - whisper_cache:/root/.cache/huggingface
+
+  worker:
+    build: .
+    command: arq worker.WorkerSettings
+    env_file: .env
+    depends_on:
+      - redis
+      - ollama
+    volumes:
+      - ./vault:/app/vault
+      - whisper_cache:/root/.cache/huggingface
+
+volumes:
+  ollama_data:
+  whisper_cache:
